@@ -6,16 +6,73 @@
 //
 
 import UIKit
+import UserNotifications
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
 
 
+    let notificationCenter = UNUserNotificationCenter.current()
+    
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Confirm delegate and request for permission
+        notificationCenter.delegate = self
+        let options: UNAuthorizationOptions = [.alert, .sound, .badge]
+        notificationCenter.requestAuthorization(options: options) { (didAllow, error) in
+            if !didAllow {
+                print("user has declined notifications")
+            }
+        }
         // Override point for customization after application launch.
         return true
     }
+    
+    
+    // LOCAL notification methods starts here
+    
+    // Prepare new notification with details and triggers
+    func scheduleNotification(notificationTYpe: String) {
+        
+        // compose new notifications
+        let content = UNMutableNotificationContent()
+        let categoryIdentifier = "Delete Notification Type"
+        content.sound = UNNotificationSound.default
+        content.body = "This is example of how to send " + notificationTYpe
+        content.badge = NSNumber(value: UIApplication.shared.applicationIconBadgeNumber + 1)
+        
+        content.categoryIdentifier = categoryIdentifier
+        
+        // add attachement for notification with more content
+        if (notificationTYpe == "Local Notification with Content") {
+            let imageName = "Apple"
+            guard let imageURL = Bundle.main.url(forResource: imageName, withExtension: .none) else { return }
+            let attachment = try! UNNotificationAttachment(identifier: imageName, url: imageURL, options: .none)
+            content.attachments = [attachment]
+        }
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
+        let identifier = "Local Notification"
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        
+        notificationCenter.add(request) { (error) in
+            if let error = error {
+                print("Error: \(error.localizedDescription)")
+            }
+        }
+        
+        // add action button to notification
+        if notificationTYpe == "Local Notification with Action" {
+            let snoozeAction = UNNotificationAction(identifier: "Snooze", title: "Snooze", options: [])
+            let deleteAction = UNNotificationAction(identifier: "DeleteAction", title: "Delete", options: [.destructive])
+            let category = UNNotificationCategory(identifier: categoryIdentifier, actions: [snoozeAction, deleteAction], intentIdentifiers: [], options: [])
+            notificationCenter.setNotificationCategories([category])
+        } else {
+            notificationCenter.setNotificationCategories([UNNotificationCategory(identifier: categoryIdentifier, actions: [], intentIdentifiers: [], options: [])])
+        }
+    }
+    
+    
 
     // MARK: UISceneSession Lifecycle
 
@@ -34,3 +91,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
 }
 
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    
+//     handle notification center delegate methods
+        func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+            print("this method is called with willPresent")
+            completionHandler([.list, .banner, .sound])
+        }
+    
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        if response.notification.request.identifier == "Local Notification" {
+            UIApplication.shared.applicationIconBadgeNumber -= 1
+        }
+        completionHandler()
+    }
+    
+}
